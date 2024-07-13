@@ -1,0 +1,201 @@
+---
+title: "Meldeeimer"
+author: "Hürth"
+lang: de
+format: 
+  dashboard:
+    logo: inputs/meldeeimer_logo.svg
+    orientation: columns
+    theme: litera
+    embed-resources: true
+---
+
+```{r}
+#| include: false
+# set local and timezone
+Sys.setlocale("LC_TIME", "German.UTF-8")
+Sys.setenv(TZ = "Europe/Berlin")
+
+# save time of run to document
+time_current <- Sys.time()
+time_24h_ago <- time_current - 24*60*60
+```
+
+```{r}
+# load administrative boundaries ----
+bounds <- sf::read_sf("inputs/huerth_admin_boundaries.geojson")
+
+# load mapping of id to location ----
+
+# key generated once
+key <- Sys.getenv("KEY")
+class(key) <- "AsIs" # class required
+
+# read encrypted data
+encrypted <- readLines("inputs/bins_encrypted.geojson")
+
+# decrypt using Github secret
+decrypted <- httr2::secret_decrypt(encrypted, key)
+
+# convert to sf object
+bins <- sf::read_sf(decrypted)
+```
+
+```{r}
+# retrieve reports from API
+url <- Sys.getenv("API")
+reports <- httr2::request(url) |>
+  httr2::req_perform() |>
+  httr2::resp_body_json(simplifyVector = TRUE)
+
+# split report content into columns
+content <- strsplit(reports$post_content, split = "\n")
+
+# transform to dataframe: time, UUID and status of bin
+reports <- data.frame(
+  datetime = as.POSIXct(reports$post_date_gmt, format = "%Y-%m-%d %H:%M:%S", tz = "GMT"),
+  uuid = sapply(content, `[`, 2),
+  response = sapply(content, `[`, 1)
+)
+
+# adjust timezone
+attr(reports$datetime, "tzone") <- "Europe/Berlin"
+
+# keep only reports indicating that bin is full
+reports <- subset(reports, response == "Ja, dieser Mülleimer ist voll.")
+
+# keep only reports with valid UUID
+reports <- subset(reports, uuid %in% bins$uuid)
+
+# aggregate reports for every bin
+reports$count <- 1
+reports_sum <- aggregate(count ~ uuid, data = reports, FUN = length)
+
+# merge bin metadata to individual reports
+reports <- merge(reports, bins, by = "uuid")
+
+# merge bin metadata to sum of reports
+reports_sum <- merge(reports_sum, bins, by = "uuid")
+```
+
+# Übersicht {width=25%}
+
+## KPI
+
+```{r}
+#| component: valuebox
+#| title: "Meldungen insg."
+list(
+  icon = "flag",
+  color = "danger",
+  value = as.numeric(nrow(reports))
+)
+```
+
+```{r}
+#| component: valuebox
+#| title: "Mülleimer insg."
+list(
+  icon = "trash",
+  color = "warning",
+  value = as.numeric(nrow(reports_sum))
+)
+```
+
+```{r}
+#| component: valuebox
+#| title: "Meldungen letzte 24h"
+list(
+  icon = "clock-history",
+  color = "secondary",
+  value = as.numeric(nrow(reports[reports$datetime >= time_24h_ago, ]))
+)
+```
+
+## Heatmap {width=75%}
+
+```{r}
+cat(
+  "title=",
+  "Alle Meldungen (Stand: ",
+  format(time_current, "%d.%m.%Y, %H:%M"),
+  " Uhr)"
+)
+
+# create a color palette for the values
+pal <- leaflet::colorNumeric(palette = "plasma", domain = reports_sum$count)
+
+# extract coordinates from geometry column
+coords <- sf::st_coordinates(reports_sum$geometry)
+
+# create heatmap of overall reports
+leaflet::leaflet(reports_sum) |>
+  leaflet::addTiles() |>
+  leaflet::addPolygons(data = bounds, fillOpacity = .1) |>
+  leaflet::addCircleMarkers(
+    lng = ~ coords[,1],
+    lat = ~ coords[,2],
+    radius = ~ count*5,
+    label = ~ paste0(bin_id, ": ", count, 
+                     ifelse(count == 1,
+                            " Meldung",
+                            " Meldungen")),
+    color = ~ pal(count),
+    clusterOptions = leaflet::markerClusterOptions(),
+    stroke = FALSE,
+    fillOpacity = .75) |>
+  leaflet::addLegend("bottomright", pal = pal, values = ~ count,
+            title = "Meld-<br>ungen",
+            opacity = 1)
+```
+
+# Tabelle {orientation="rows"}
+
+```{r}
+# transform sf-geometry to coordinates
+coords <- sf::st_coordinates(reports$geometry)
+
+reports$lat <- coords[,2]
+reports$lon <- coords[,1]
+
+reports$location <- paste0(
+  '<a href="https://www.openstreetmap.org/?mlat=',
+  reports$lat,
+  '&mlon=',
+  reports$lon,
+  "#map=14/",
+  reports$lat,
+  "/",
+  reports$lon,
+  '" target="_blank">',
+  paste(coords[,2], coords[,1], sep = ", "),
+  '</a>'
+)
+
+# separate date and time for better readability
+reports$date <- as.Date(reports$datetime)
+reports$time <- format(reports$datetime, format = "%H:%M:%S")
+reports$hour <- as.integer(format(reports$datetime, format = "%H"))
+
+# sort last report on top
+reports <- reports[order(reports$datetime, decreasing = TRUE), ]
+
+# print table
+DT::datatable(
+  reports[, c("date", "hour", "time", "bin_id", "location")],
+  escape = FALSE,
+  colnames = c("Datum", "Stunde", "Uhrzeit", "Mülleimer", "Standort"),
+  rownames = FALSE,
+  filter = "top",
+  extensions = 'Buttons',
+  options = list(
+    dom = "Bitp",
+    buttons = c('csv'),
+    searchHighlight = TRUE,
+    pageLength = 10,
+    columnDefs = list(list(className = 'dt-right', targets = '_all')),
+    language = list(url = "//cdn.datatables.net/plug-ins/2.0.3/i18n/de-DE.json",
+                    info = "_TOTAL_ Meldungen")))
+```
+
+Die Daten werden regelmäßig aktualisiert, zuletzt: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.

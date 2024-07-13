@@ -1,0 +1,36 @@
+on:
+  workflow_dispatch: null
+  push:
+    branches: main
+  schedule:
+    - cron: 10 4,11,18 * * * # 6:10, 13:10, 20:10 Europe/Berlin Summer Time (UTC+2)
+name: Update Dashboard
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 4.4.1
+      - name: Setup packages
+        uses: r-lib/actions/setup-renv@v2
+        with:
+          cache-version: 1
+      - name: Render and publish to GitHub Pages
+        uses: quarto-dev/quarto-actions/publish@v2
+        with:
+          target: gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEY: ${{ secrets.KEY }}
+          API: ${{ secrets.API }}
