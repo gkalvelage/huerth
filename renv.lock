@@ -771,18 +771,6 @@
       "Repository": "CRAN",
       "Hash": "3a1be13d68d47a8cd0bfd74739ca1555"
     },
-    "terra": {
-      "Package": "terra",
-      "Version": "1.7-78",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "Rcpp",
-        "methods"
-      ],
-      "Hash": "8f020def0792119cb98bd8f696dab22d"
-    },
     "tinytex": {
       "Package": "tinytex",
       "Version": "0.51",
