@@ -8,25 +8,24 @@ name: Update Dashboard
 jobs:
   update-dashboard:
     runs-on: ubuntu-22.04
+    container:
+      image: rocker/r2u:22.04
     permissions:
       contents: write
       pages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Setup r2u
-        uses: eddelbuettel/github-actions/r2u-setup@master
-      - name: Install bspm package
-        run: |
-          R -e "install.packages('bspm', repos = 'https://cloud.r-project.org/')"        
-      - name: Setup Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup packages
         uses: r-lib/actions/setup-renv@v2
         with:
           cache-version: 1
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: v1.5.54
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Render and publish to GitHub Pages
         uses: quarto-dev/quarto-actions/publish@v2
         with:
