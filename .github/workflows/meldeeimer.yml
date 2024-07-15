@@ -27,7 +27,7 @@ jobs:
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         with:
-          version: v1.5.54
+          version: 1.5.54
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Render and publish to GitHub Pages
