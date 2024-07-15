@@ -629,7 +629,8 @@
         "R",
         "Rcpp",
         "methods",
-        "sp"
+        "sp",
+        "terra"
       ],
       "Hash": "7d6eda494f34a644420ac1bfd2a8023a"
     },
@@ -769,6 +770,18 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "3a1be13d68d47a8cd0bfd74739ca1555"
+    },
+    "terra": {
+      "Package": "terra",
+      "Version": "1.7-78",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "methods"
+      ],
+      "Hash": "8f020def0792119cb98bd8f696dab22d"
     },
     "tinytex": {
       "Package": "tinytex",
