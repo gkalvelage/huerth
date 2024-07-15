@@ -18,6 +18,7 @@ jobs:
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
+            any::tibble
             any::httr2
             any::sf
             any::leaflet
