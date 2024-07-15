@@ -16,6 +16,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup r2u
         uses: eddelbuettel/github-actions/r2u-setup@master
+      - name: Install bspm package
+        run: |
+          R -e "install.packages('bspm', repos = 'https://cloud.r-project.org/')"        
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         env:
