@@ -1,4 +1,5 @@
 project:
   title: "Meldeeimer"
-  resources:
-    - CNAME
+
+resources:
+  - CNAME
