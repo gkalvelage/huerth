@@ -39,6 +39,9 @@ decrypted <- httr2::secret_decrypt(encrypted, key)
 
 # convert to sf object
 bins <- sf::read_sf(decrypted)
+
+# relabel missing bin id (temporary fix)
+bins$bin_id[bins$bin_id == "offen"] <- "ohne Nr."
 ```
 
 ```{r}
@@ -61,8 +64,14 @@ reports <- data.frame(
 # adjust timezone
 attr(reports$datetime, "tzone") <- "Europe/Berlin"
 
-# keep only reports indicating that bin is full
-reports <- subset(reports, response == "Ja, dieser Mülleimer ist voll.")
+# clean response codes
+categories <- c(
+  "Ja, dieser Mülleimer ist voll." = "Mülleimer voll",
+  "Nein, Hundekotbeutel fehlen." = "Hundekotbeutel fehlen",
+  "Nein, wilder Müll liegt hier." = "wilder Müll am Mülleimer",
+  "Ein anderes Problem." = "anderes Problem"
+)
+reports$response <- categories[reports$response]
 
 # keep only reports with valid UUID
 reports <- subset(reports, uuid %in% bins$uuid)
@@ -182,9 +191,9 @@ reports <- reports[order(reports$datetime, decreasing = TRUE), ]
 
 # print table
 DT::datatable(
-  reports[, c("date", "hour", "time", "bin_id", "location")],
+  reports[, c("date", "time", "bin_id", "response", "location")],
   escape = FALSE,
-  colnames = c("Datum", "Stunde", "Uhrzeit", "Mülleimer", "Standort"),
+  colnames = c("Datum", "Uhrzeit", "Mülleimer-Nr.", "Meldegrund", "Standort"),
   rownames = FALSE,
   filter = "top",
   extensions = 'Buttons',
