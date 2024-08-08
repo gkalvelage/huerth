@@ -82,7 +82,7 @@ list(
 ## Heatmap {width=75%}
 
 ```{r}
-cat("title=", "Alle Meldungen seit dem 2. August 2024.")
+cat("title=", "Meldungen seit 2. August 2024")
 
 # create a color palette for the values
 pal <- leaflet::colorNumeric(palette = "plasma", domain = reports_sum$count)
