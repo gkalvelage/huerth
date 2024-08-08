@@ -19,72 +19,30 @@ Sys.setenv(TZ = "Europe/Berlin")
 # save time of run to document
 time_current <- Sys.time()
 time_24h_ago <- time_current - 24*60*60
+
+# import functions
+source("meldee_get_bin_metadata.R")
+source("meldee_get_reports.R")
 ```
 
 ```{r}
-# load administrative boundaries ----
-bounds <- sf::read_sf("inputs/huerth_admin_boundaries.geojson")
+# get bin metadata
+bins <- meldee_get_bin_metadata()
 
-# load mapping of id to location ----
-
-# key generated once
-key <- Sys.getenv("KEY")
-class(key) <- "AsIs" # class required
-
-# read encrypted data
-encrypted <- readLines("inputs/bins_encrypted.geojson")
-
-# decrypt using Github secret
-decrypted <- httr2::secret_decrypt(encrypted, key)
-
-# convert to sf object
-bins <- sf::read_sf(decrypted)
-
-# relabel missing bin id (temporary fix)
-bins$bin_id[bins$bin_id == "offen"] <- "ohne Nr."
+# get reports
+reports <- meldee_get_reports()
 ```
 
 ```{r}
-# retrieve reports from API
-url <- Sys.getenv("API")
-reports <- httr2::request(url) |>
-  httr2::req_perform() |>
-  httr2::resp_body_json(simplifyVector = TRUE)
-
-# split report content into columns
-content <- strsplit(reports$post_content, split = "\n")
-
-# transform to dataframe: time, UUID and status of bin
-reports <- data.frame(
-  datetime = as.POSIXct(reports$post_date_gmt, format = "%Y-%m-%d %H:%M:%S", tz = "GMT"),
-  uuid = sapply(content, `[`, 2),
-  response = sapply(content, `[`, 1)
-)
-
-# adjust timezone
-attr(reports$datetime, "tzone") <- "Europe/Berlin"
-
-# clean response codes
-categories <- c(
-  "Ja, dieser Mülleimer ist voll." = "Mülleimer voll",
-  "Nein, Hundekotbeutel fehlen." = "Hundekotbeutel fehlen",
-  "Nein, wilder Müll liegt hier." = "wilder Müll am Mülleimer",
-  "Ein anderes Problem." = "anderes Problem"
-)
-reports$response <- categories[reports$response]
-
 # keep only reports with valid UUID
 reports <- subset(reports, uuid %in% bins$uuid)
-
-# aggregate reports for every bin
-reports$count <- 1
-reports_sum <- aggregate(count ~ uuid, data = reports, FUN = length)
 
 # merge bin metadata to individual reports
 reports <- merge(reports, bins, by = "uuid")
 
-# merge bin metadata to sum of reports
-reports_sum <- merge(reports_sum, bins, by = "uuid")
+# aggregate reports for every bin
+reports$count <- 1
+reports_sum <- aggregate(count ~ uuid + bin_id + lon + lat, data = reports, FUN = length)
 ```
 
 # Übersicht {width=25%}
@@ -124,49 +82,53 @@ list(
 ## Heatmap {width=75%}
 
 ```{r}
-cat(
-  "title=",
-  "Alle Meldungen (Stand: ",
-  format(time_current, "%d.%m.%Y, %H:%M"),
-  " Uhr)"
-)
+cat("title=", "Alle Meldungen seit dem 2. August 2024.")
 
 # create a color palette for the values
 pal <- leaflet::colorNumeric(palette = "plasma", domain = reports_sum$count)
 
-# extract coordinates from geometry column
-coords <- sf::st_coordinates(reports_sum$geometry)
+# compute the convex hull to identify outer most points
+hull_indices <- chull(bins$lon, bins$lat)
+hull_indices <- c(hull_indices, hull_indices[1])  # close polygon
+border <- bins[hull_indices, ] # extract the border coordinates
 
 # create heatmap of overall reports
 leaflet::leaflet(reports_sum) |>
   leaflet::addTiles() |>
-  leaflet::addPolygons(data = bounds, fillOpacity = .1) |>
+  leaflet::addPolygons(
+    lng = border$lon,
+    lat = border$lat,
+    fillOpacity = 0.1
+  ) |>
+  # bounds <- sf::read_sf("inputs/huerth_admin_boundaries.geojson")
+  # leaflet::addPolygons(data = bounds, fillOpacity = .1) |>
   leaflet::addCircleMarkers(
-    lng = ~ coords[,1],
-    lat = ~ coords[,2],
-    radius = ~ count*5,
-    label = ~ paste0(bin_id, ": ", count, 
-                     ifelse(count == 1,
-                            " Meldung",
-                            " Meldungen")),
+    lng = ~ lon,
+    lat = ~ lat,
+    radius = ~ count * 5,
+    label = ~ paste0(bin_id, ": ", count, ifelse(count == 1, " Meldung", " Meldungen")),
     color = ~ pal(count),
     clusterOptions = leaflet::markerClusterOptions(),
     stroke = FALSE,
-    fillOpacity = .75) |>
-  leaflet::addLegend("bottomright", pal = pal, values = ~ count,
-            title = "Meld-<br>ungen",
-            opacity = 1)
+    fillOpacity = .75
+  ) |>
+  leaflet::addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~ count,
+    title = "Meld-<br>ungen",
+    opacity = 1
+  )
 ```
+
+::: {expandable="false" style="font-size: 65%; text-align: right;"}
+Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr. Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html). [Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
+:::
 
 # Tabelle {orientation="rows"}
 
 ```{r}
-# transform sf-geometry to coordinates
-coords <- sf::st_coordinates(reports$geometry)
-
-reports$lat <- coords[,2]
-reports$lon <- coords[,1]
-
+# create link to OSM
 reports$location <- paste0(
   '<a href="https://www.openstreetmap.org/?mlat=',
   reports$lat,
@@ -177,14 +139,13 @@ reports$location <- paste0(
   "/",
   reports$lon,
   '" target="_blank">',
-  paste(coords[,2], coords[,1], sep = ", "),
+  paste(reports$lat, reports$lon, sep = ", "),
   '</a>'
 )
 
 # separate date and time for better readability
 reports$date <- as.Date(reports$datetime)
 reports$time <- format(reports$datetime, format = "%H:%M:%S")
-reports$hour <- as.integer(format(reports$datetime, format = "%H"))
 
 # sort last report on top
 reports <- reports[order(reports$datetime, decreasing = TRUE), ]
@@ -207,4 +168,6 @@ DT::datatable(
                     info = "_TOTAL_ Meldungen")))
 ```
 
-Die Daten werden regelmäßig aktualisiert, zuletzt: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.
+::: {expandable="false" style="font-size: 65%; text-align: right;"}
+Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr. Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html). [Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
+:::
