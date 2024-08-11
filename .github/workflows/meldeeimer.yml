@@ -3,7 +3,7 @@ on:
   push:
     branches: main
   schedule:
-    - cron: '58 3-21 * * *' # 5:58 to 22:58 Europe/Berlin Summer Time (UTC+2)
+    - cron: '55 3-21 * * *' # 5:55 to 22:55 Europe/Berlin Summer Time (UTC+2)
 name: Update Dashboard
 jobs:
   update-dashboard:

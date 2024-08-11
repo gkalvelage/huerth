@@ -71,7 +71,7 @@ list(
 
 ```{r}
 #| component: valuebox
-#| title: "Meldungen letzte 24h"
+#| title: "Meldungen < 24h"
 list(
   icon = "clock-history",
   color = "secondary",
@@ -82,7 +82,7 @@ list(
 ## Heatmap {width=75%}
 
 ```{r}
-cat("title=", "Meldungen seit 2. August 2024")
+cat("title=", "Meldungen seit: 2. August 2024")
 
 # create a color palette for the values
 pal <- leaflet::colorNumeric(palette = "plasma", domain = reports_sum$count)
@@ -95,11 +95,9 @@ border <- bins[hull_indices, ] # extract the border coordinates
 # create heatmap of overall reports
 leaflet::leaflet(reports_sum) |>
   leaflet::addTiles() |>
-  leaflet::addPolygons(
-    lng = border$lon,
-    lat = border$lat,
-    fillOpacity = 0.1
-  ) |>
+  leaflet::addPolygons(lng = border$lon,
+                       lat = border$lat,
+                       fillOpacity = 0.1) |>
   # bounds <- sf::read_sf("inputs/huerth_admin_boundaries.geojson")
   # leaflet::addPolygons(data = bounds, fillOpacity = .1) |>
   leaflet::addCircleMarkers(
@@ -117,12 +115,11 @@ leaflet::leaflet(reports_sum) |>
     pal = pal,
     values = ~ count,
     title = "Meld-<br>ungen",
-    opacity = 1
-  )
+    opacity = 1  )
 ```
 
 ::: {expandable="false" style="font-size: 65%; text-align: right;"}
-Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr. Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html). [Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
+Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.<br>Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html).<br>[Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
 :::
 
 # Tabelle {orientation="rows"}
@@ -158,16 +155,26 @@ DT::datatable(
   rownames = FALSE,
   filter = "top",
   extensions = 'Buttons',
+  callback = DT::JS('
+    $(\'div.has-feedback input[type="search"]\').attr("placeholder", "(alle)");
+    $(\'div.has-feedback input[type="search"]\').css({
+      "font-size": "0.8em",
+      "text-align": "right"
+    });
+  '),
   options = list(
     dom = "Bitp",
-    buttons = c('csv'),
+    buttons = c('csv', 'excel', 'pdf'),
     searchHighlight = TRUE,
     pageLength = 10,
-    columnDefs = list(list(className = 'dt-right', targets = '_all')),
-    language = list(url = "//cdn.datatables.net/plug-ins/2.0.3/i18n/de-DE.json",
-                    info = "_TOTAL_ Meldungen")))
+    columnDefs = list(list(
+      className = 'dt-right', targets = '_all'
+    )),
+    language = list(url = "//cdn.datatables.net/plug-ins/2.1.3/i18n/de-DE.json", info = "_TOTAL_ Meldungen")
+  )
+)
 ```
 
 ::: {expandable="false" style="font-size: 65%; text-align: right;"}
-Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr. Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html). [Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
+Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.<br>Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html).<br>[Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
 :::
