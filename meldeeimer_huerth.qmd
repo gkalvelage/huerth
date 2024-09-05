@@ -103,10 +103,10 @@ leaflet::leaflet(reports_sum) |>
   leaflet::addCircleMarkers(
     lng = ~ lon,
     lat = ~ lat,
-    radius = ~ count * 5,
+    radius = ~ sqrt(count) * 5,
     label = ~ paste0(bin_id, ": ", count, ifelse(count == 1, " Meldung", " Meldungen")),
     color = ~ pal(count),
-    clusterOptions = leaflet::markerClusterOptions(),
+#    clusterOptions = leaflet::markerClusterOptions(),
     stroke = FALSE,
     fillOpacity = .75
   ) |>
