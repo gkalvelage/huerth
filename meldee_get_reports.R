@@ -1,6 +1,6 @@
 # get reports from API
 meldee_get_reports <- function() {
-  # retrieve reports from API ----
+  # retrieve reports from API
   url <- Sys.getenv("API")
   response <- httr2::request(url) |>
     httr2::req_perform() |>
@@ -9,7 +9,7 @@ meldee_get_reports <- function() {
   # split report content into columns
   content <- strsplit(response$post_content, split = "\n")
   
-  # transform to dataframe
+  # transform to data frame
   reports <- data.frame(
     datetime = as.POSIXct(response$post_date_gmt, format = "%Y-%m-%d %H:%M:%S", tz = "GMT"),
     uuid = sapply(content, `[`, 2),

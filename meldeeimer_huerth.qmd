@@ -22,21 +22,31 @@ time_24h_ago <- time_current - 24*60*60
 
 # import functions
 source("meldee_get_bin_metadata.R")
+source("meldee_get_bins.R")
 source("meldee_get_reports.R")
+source("meldee_filter_valid_reports.R")
+source("meldee_update_report_uuid.R")
 ```
 
 ```{r}
 # get bin metadata
-bins <- meldee_get_bin_metadata()
+geojson <- "https://raw.githubusercontent.com/gkalvelage/huerth/main/inputs/bins_encrypted.geojson"
+bin_metadata <- meldee_get_bin_metadata(geojson)
+
+# create data frame of bins
+bins <- meldee_get_bins(bin_metadata)
 
 # get reports
 reports <- meldee_get_reports()
+
+# keep only reports with valid UUID
+reports <- meldee_filter_valid_reports(reports, bin_metadata)
+
+# replace historical UUID with current UUID, i.e. combine reports for bin
+reports <- meldee_update_report_uuid(reports, bin_metadata)
 ```
 
 ```{r}
-# keep only reports with valid UUID
-reports <- subset(reports, uuid %in% bins$uuid)
-
 # merge bin metadata to individual reports
 reports <- merge(reports, bins, by = "uuid")
 
