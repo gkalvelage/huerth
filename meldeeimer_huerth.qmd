@@ -105,9 +105,9 @@ border <- bins[hull_indices, ] # extract the border coordinates
 # create heatmap of overall reports
 leaflet::leaflet(reports_sum) |>
   leaflet::addTiles() |>
-  leaflet::addPolygons(lng = border$lon,
-                       lat = border$lat,
-                       fillOpacity = 0.1) |>
+  # leaflet::addPolygons(lng = border$lon,
+  #                      lat = border$lat,
+  #                      fillOpacity = 0.1) |>
   # bounds <- sf::read_sf("inputs/huerth_admin_boundaries.geojson")
   # leaflet::addPolygons(data = bounds, fillOpacity = .1) |>
   leaflet::addCircleMarkers(
