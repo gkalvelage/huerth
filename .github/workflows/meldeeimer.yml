@@ -16,6 +16,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Install jq for Quarto inside container
+        run: |
+          apt-get update
+          apt-get install -y jq
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         env:
