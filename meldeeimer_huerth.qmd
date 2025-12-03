@@ -55,27 +55,42 @@ reports$count <- 1
 reports_sum <- aggregate(count ~ uuid + bin_id + lon + lat, data = reports, FUN = length)
 ```
 
-# Übersicht {width=25%}
+```{r}
+library("lubridate")
+
+last7days <- reports |>
+  dplyr::filter(datetime >= time_current - lubridate::days(7))
+
+last7days_sum <- aggregate(count ~ uuid + bin_id + lon + lat, data = last7days, FUN = length)
+
+last6months <- reports |>
+  dplyr::filter(datetime >= time_current %m-% months(6))
+
+last6months_sum <- aggregate(count ~ uuid + bin_id + lon + lat, data = last6months, FUN = length)
+```
+
+
+# Letzte 7 Tage {width=25%}
 
 ## KPI
 
 ```{r}
 #| component: valuebox
-#| title: "Meldungen insg."
+#| title: "Meldungen"
 list(
   icon = "flag",
   color = "danger",
-  value = as.numeric(nrow(reports))
+  value = as.numeric(nrow(last7days))
 )
 ```
 
 ```{r}
 #| component: valuebox
-#| title: "Mülleimer insg."
+#| title: "Mülleimer"
 list(
   icon = "trash",
   color = "warning",
-  value = as.numeric(nrow(reports_sum))
+  value = as.numeric(nrow(last7days_sum))
 )
 ```
 
@@ -92,10 +107,10 @@ list(
 ## Heatmap {width=75%}
 
 ```{r}
-cat("title=", "Meldungen seit: 2. August 2024")
+cat("title=", "Meldungen: letzte 7 Tage")
 
 # create a color palette for the values
-pal <- leaflet::colorNumeric(palette = "plasma", domain = reports_sum$count)
+pal <- leaflet::colorNumeric(palette = "plasma", domain = last7days_sum$count)
 
 # compute the convex hull to identify outer most points
 hull_indices <- chull(bins$lon, bins$lat)
@@ -103,7 +118,7 @@ hull_indices <- c(hull_indices, hull_indices[1])  # close polygon
 border <- bins[hull_indices, ] # extract the border coordinates
 
 # create heatmap of overall reports
-leaflet::leaflet(reports_sum) |>
+leaflet::leaflet(last7days_sum) |>
   leaflet::addTiles() |>
   # leaflet::addPolygons(lng = border$lon,
   #                      lat = border$lat,
@@ -129,10 +144,87 @@ leaflet::leaflet(reports_sum) |>
 ```
 
 ::: {expandable="false" style="font-size: 65%; text-align: right;"}
-Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.<br>Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html).<br>[Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
+Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.<br>[Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
 :::
 
-# Tabelle {orientation="rows"}
+# Letzte 6 Monate {width=25%}
+
+## KPI
+
+```{r}
+#| component: valuebox
+#| title: "Meldungen"
+list(
+  icon = "flag",
+  color = "danger",
+  value = as.numeric(nrow(last6months))
+)
+```
+
+```{r}
+#| component: valuebox
+#| title: "Mülleimer"
+list(
+  icon = "trash",
+  color = "warning",
+  value = as.numeric(nrow(last6months_sum))
+)
+```
+
+```{r}
+#| component: valuebox
+#| title: "Meldungen < 24h"
+list(
+  icon = "clock-history",
+  color = "secondary",
+  value = as.numeric(nrow(reports[reports$datetime >= time_24h_ago, ]))
+)
+```
+
+## Heatmap {width=75%}
+
+```{r}
+cat("title=", "Meldungen: letzte 6 Monate")
+
+# create a color palette for the values
+pal <- leaflet::colorNumeric(palette = "plasma", domain = last6months_sum$count)
+
+# compute the convex hull to identify outer most points
+hull_indices <- chull(bins$lon, bins$lat)
+hull_indices <- c(hull_indices, hull_indices[1])  # close polygon
+border <- bins[hull_indices, ] # extract the border coordinates
+
+# create heatmap of overall reports
+leaflet::leaflet(last6months_sum) |>
+  leaflet::addTiles() |>
+  # leaflet::addPolygons(lng = border$lon,
+  #                      lat = border$lat,
+  #                      fillOpacity = 0.1) |>
+  # bounds <- sf::read_sf("inputs/huerth_admin_boundaries.geojson")
+  # leaflet::addPolygons(data = bounds, fillOpacity = .1) |>
+  leaflet::addCircleMarkers(
+    lng = ~ lon,
+    lat = ~ lat,
+    radius = ~ sqrt(count) * 5,
+    label = ~ paste0(bin_id, ": ", count, ifelse(count == 1, " Meldung", " Meldungen")),
+    color = ~ pal(count),
+#    clusterOptions = leaflet::markerClusterOptions(),
+    stroke = FALSE,
+    fillOpacity = .75
+  ) |>
+  leaflet::addLegend(
+    "bottomright",
+    pal = pal,
+    values = ~ count,
+    title = "Meld-<br>ungen",
+    opacity = 1  )
+```
+
+::: {expandable="false" style="font-size: 65%; text-align: right;"}
+Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.<br>[Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
+:::
+
+# Datentabelle {orientation="rows"}
 
 ```{r}
 # create link to OSM
@@ -146,7 +238,7 @@ reports$location <- paste0(
   "/",
   reports$lon,
   '" target="_blank">',
-  paste(reports$lat, reports$lon, sep = ", "),
+  paste(round(reports$lat, 5), round(reports$lon, 5), sep = ", "),
   '</a>'
 )
 
@@ -186,5 +278,5 @@ DT::datatable(
 ```
 
 ::: {expandable="false" style="font-size: 65%; text-align: right;"}
-Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.<br>Gefördert von [un:box cologne](https://www.stadt-koeln.de/leben-in-koeln/unbox-cologne/index.html).<br>[Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
+Zuletzt aktualisiert: `r format(time_current, "%d.%m.%Y, %H:%M")` Uhr.<br>[Hintergrund](https://meldeeimer.de/huerth) - [Impressum](https://meldeeimer.de/impressum) - [Datenschutz](https://meldeeimer.de/datenschutz)
 :::
