@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+      - name: Install R packages
+        run: install2.r --skipinstalled DT
       - name: Install jq for Quarto inside container
         run: |
           apt-get update
