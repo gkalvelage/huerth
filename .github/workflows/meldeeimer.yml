@@ -20,6 +20,8 @@ jobs:
         run: |
           apt-get update
           apt-get install -y jq
+      - name: Mark output dir as safe
+        run: git config --global --add safe.directory /__w/huerth/huerth
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         env:
