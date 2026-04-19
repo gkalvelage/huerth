@@ -8,7 +8,6 @@ meldee_get_reports <- function() {
       max_tries = 5,
       retry_on_failure = TRUE
     ) |>
-    httr2::req_verbose() |>
     httr2::req_perform() |>
     httr2::resp_body_json(simplifyVector = TRUE)
   
