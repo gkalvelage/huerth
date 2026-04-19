@@ -3,7 +3,7 @@ meldee_get_reports <- function() {
   # retrieve reports from API
   url <- Sys.getenv("API")
   response <- httr2::request(url) |>
-    httr2::req_timeout(60) |>
+    httr2::req_timeout(120) |>
     httr2::req_retry(
       max_tries = 5,
       retry_on_failure = TRUE
